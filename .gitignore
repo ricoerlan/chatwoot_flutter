@@ -12,7 +12,6 @@
 *.mocks.dart
 applicationDocumentsPath
 hive_testing_path
-.fvm/flutter_sdk
 
 # IntelliJ related
 *.iml
@@ -78,3 +77,6 @@ build/
 !**/ios/**/default.pbxuser
 !**/ios/**/default.perspectivev3
 /coverage/
+
+# FVM Version Cache
+.fvm/
