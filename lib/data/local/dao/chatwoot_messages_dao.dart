@@ -11,12 +11,15 @@ abstract class ChatwootMessagesDao {
   Future<void> clear();
   Future<void> deleteMessage(int messageId);
   Future<void> onDispose();
+  Future<void> markMessageAsRead(int messageId);
+  bool isMessageRead(int messageId);
+  Set<int> getReadMessageIds();
 
   Future<void> clearAll();
 }
 
 //Only used when persistence is enabled
-enum ChatwootMessagesBoxNames { MESSAGES, MESSAGES_TO_CLIENT_INSTANCE_KEY }
+enum ChatwootMessagesBoxNames { MESSAGES, MESSAGES_TO_CLIENT_INSTANCE_KEY, READ_MESSAGES }
 
 class PersistedChatwootMessagesDao extends ChatwootMessagesDao {
   // box containing all persisted messages
@@ -26,8 +29,14 @@ class PersistedChatwootMessagesDao extends ChatwootMessagesDao {
 
   //box with one to many relation
   final Box<String> _messageIdToClientInstanceKeyBox;
+  
+  // box containing read message IDs for each client instance
+  final Box<List<dynamic>> _readMessagesBox;
 
-  PersistedChatwootMessagesDao(this._box, this._messageIdToClientInstanceKeyBox,
+  PersistedChatwootMessagesDao(
+      this._box,
+      this._messageIdToClientInstanceKeyBox,
+      this._readMessagesBox,
       this._clientInstanceKey);
 
   @override
@@ -39,6 +48,7 @@ class PersistedChatwootMessagesDao extends ChatwootMessagesDao {
 
     await _box.deleteAll(clientMessageIds);
     await _messageIdToClientInstanceKeyBox.deleteAll(clientMessageIds);
+    await _readMessagesBox.delete(_clientInstanceKey); // Clear read messages for this client instance
   }
 
   @override
@@ -80,6 +90,32 @@ class PersistedChatwootMessagesDao extends ChatwootMessagesDao {
 
   @override
   Future<void> onDispose() async {}
+  
+  @override
+  Future<void> markMessageAsRead(int messageId) async {
+    // Get current read message IDs or initialize empty list
+    List<dynamic> readIds = _readMessagesBox.get(_clientInstanceKey, defaultValue: []) ?? [];
+    
+    // Add messageId if not already present
+    if (!readIds.contains(messageId)) {
+      readIds.add(messageId);
+      await _readMessagesBox.put(_clientInstanceKey, readIds);
+    }
+  }
+  
+  @override
+  bool isMessageRead(int messageId) {
+    // Get read message IDs for current client instance
+    final readIds = _readMessagesBox.get(_clientInstanceKey, defaultValue: []) ?? [];
+    return readIds.contains(messageId);
+  }
+  
+  @override
+  Set<int> getReadMessageIds() {
+    // Get read message IDs for current client instance as Set<int>
+    final readIds = _readMessagesBox.get(_clientInstanceKey, defaultValue: []) ?? [];
+    return readIds.map((id) => id as int).toSet();
+  }
 
   @override
   Future<void> deleteMessage(int messageId) async {
@@ -96,6 +132,7 @@ class PersistedChatwootMessagesDao extends ChatwootMessagesDao {
   Future<void> clearAll() async {
     await _box.clear();
     await _messageIdToClientInstanceKeyBox.clear();
+    await _readMessagesBox.clear();
   }
 
   static Future<void> openDB() async {
@@ -103,15 +140,19 @@ class PersistedChatwootMessagesDao extends ChatwootMessagesDao {
         ChatwootMessagesBoxNames.MESSAGES.toString());
     await Hive.openBox<String>(
         ChatwootMessagesBoxNames.MESSAGES_TO_CLIENT_INSTANCE_KEY.toString());
+    await Hive.openBox<List<dynamic>>(
+        ChatwootMessagesBoxNames.READ_MESSAGES.toString());
   }
 }
 
 class NonPersistedChatwootMessagesDao extends ChatwootMessagesDao {
   HashMap<int, ChatwootMessage> _messages = new HashMap();
+  Set<int> _readMessageIds = {};
 
   @override
   Future<void> clear() async {
     _messages.clear();
+    _readMessageIds.clear();
   }
 
   @override
@@ -150,9 +191,25 @@ class NonPersistedChatwootMessagesDao extends ChatwootMessagesDao {
   Future<void> saveMessage(ChatwootMessage message) async {
     _messages.update(message.id, (value) => message, ifAbsent: () => message);
   }
+  
+  @override
+  Future<void> markMessageAsRead(int messageId) async {
+    _readMessageIds.add(messageId);
+  }
+  
+  @override
+  bool isMessageRead(int messageId) {
+    return _readMessageIds.contains(messageId);
+  }
+  
+  @override
+  Set<int> getReadMessageIds() {
+    return _readMessageIds;
+  }
 
   @override
   Future<void> clearAll() async {
     _messages.clear();
+    _readMessageIds.clear();
   }
 }

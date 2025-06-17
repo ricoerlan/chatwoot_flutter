@@ -100,23 +100,47 @@ class ChatwootClient {
   }
 
   /// Gets the count of unread messages
-  /// Unread messages are defined as messages that are not from the current user
+  /// Unread messages are defined as messages that are not from the current user AND have not been marked as read
+  /// This method will fetch the latest messages from the server before calculating the count
   /// Returns 0 if no unread messages are found or if there's an error
   Future<int> getUnreadMessageCount() async {
     try {
       final container = providerContainerMap[_parameters.clientInstanceKey]!;
       final localStorage = container.read(localStorageProvider(_parameters));
       
-      // Get all messages
+      // First load the latest messages from the server
+      await _repository.getMessages();
+      
+      // Get all messages (now including the latest from server)
       final messages = localStorage.messagesDao.getMessages();
       
-      // Filter messages that are not from the current user
-      final unreadMessages = messages.where((message) => !message.isMine).toList();
+      // Get the set of read message IDs
+      final readMessageIds = localStorage.messagesDao.getReadMessageIds();
+      
+      // Filter messages that are not from the current user AND have not been marked as read
+      final unreadMessages = messages.where((message) => 
+        !message.isMine && !readMessageIds.contains(message.id)
+      ).toList();
       
       return unreadMessages.length;
     } catch (e) {
       // Return 0 if there's an error
       return 0;
+    }
+  }
+  
+  /// Fetches the list of conversations from the server
+  /// Returns an empty list if there's an error
+  Future<List<ChatwootConversation>> getConversations() async {
+    try {
+      return await _repository.getConversations();
+    } on ChatwootClientException catch (e) {
+      callbacks?.onError?.call(e);
+      return [];
+    } catch (e) {
+      callbacks?.onError?.call(ChatwootClientException(
+          e.toString(), ChatwootClientExceptionType.GET_CONVERSATION_FAILED));
+      return [];
     }
   }
 
