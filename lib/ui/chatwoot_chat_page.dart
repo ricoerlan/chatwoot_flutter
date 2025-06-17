@@ -281,6 +281,8 @@ class _ChatwootChatState extends State<ChatwootChat> {
       setState(() {
         chatwootClient = client;
         chatwootClient!.loadMessages();
+        // Mark all messages as read when the chat page is opened
+        chatwootClient!.markAllMessagesAsRead();
       });
     }).onError((error, stackTrace) {
       widget.onError?.call(ChatwootClientException(

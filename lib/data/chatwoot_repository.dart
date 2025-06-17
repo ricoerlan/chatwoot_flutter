@@ -4,6 +4,7 @@ import 'dart:core';
 
 import 'package:chatwoot_flutter/chatwoot_callbacks.dart';
 import 'package:chatwoot_flutter/chatwoot_client.dart';
+import 'package:chatwoot_flutter/data/local/entity/chatwoot_conversation.dart';
 import 'package:chatwoot_flutter/data/local/entity/chatwoot_user.dart';
 import 'package:chatwoot_flutter/data/local/local_storage.dart';
 import 'package:chatwoot_flutter/data/remote/chatwoot_client_exception.dart';
@@ -44,6 +45,8 @@ abstract class ChatwootRepository {
   Future<void> clear();
 
   void dispose();
+  
+  Future<List<ChatwootConversation>> getConversations();
 }
 
 class ChatwootRepositoryImpl extends ChatwootRepository {
@@ -56,6 +59,22 @@ class ChatwootRepositoryImpl extends ChatwootRepository {
       required LocalStorage localStorage,
       required ChatwootCallbacks streamCallbacks})
       : super(clientService, localStorage, streamCallbacks);
+      
+  /// Fetches conversation list from the server
+  /// Note: This does not persist the conversation list as current DAO only supports a single conversation
+  @override
+  Future<List<ChatwootConversation>> getConversations() async {
+    try {
+      return await clientService.getConversations();
+    } on ChatwootClientException catch (e) {
+      callbacks.onError?.call(e);
+      return [];
+    } catch (e) {
+      callbacks.onError?.call(ChatwootClientException(
+          e.toString(), ChatwootClientExceptionType.GET_CONVERSATION_FAILED));
+      return [];
+    }
+  }
 
   /// Fetches persisted messages.
   ///

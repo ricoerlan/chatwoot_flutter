@@ -102,6 +102,12 @@ final messagesBoxProvider = Provider<Box<ChatwootMessage>>((ref) {
       ChatwootMessagesBoxNames.MESSAGES.toString());
 });
 
+///Provides hive box for tracking read message IDs, which is used when persistence is enabled
+final readMessagesBoxProvider = Provider<Box<List<dynamic>>>((ref) {
+  return Hive.box<List<dynamic>>(
+      ChatwootMessagesBoxNames.READ_MESSAGES.toString());
+});
+
 ///Provides hive box for [ChatwootUser] object, which is used when persistence is enabled
 final userBoxProvider = Provider<Box<ChatwootUser>>((ref) {
   return Hive.box<ChatwootUser>(ChatwootUserBoxNames.USERS.toString());
@@ -152,8 +158,9 @@ final chatwootMessagesDaoProvider =
   final messagesBox = ref.read(messagesBoxProvider);
   final messageToClientInstanceBox =
       ref.read(messageToClientInstanceBoxProvider);
+  final readMessagesBox = ref.read(readMessagesBoxProvider);
   return PersistedChatwootMessagesDao(
-      messagesBox, messageToClientInstanceBox, params.clientInstanceKey);
+      messagesBox, messageToClientInstanceBox, readMessagesBox, params.clientInstanceKey);
 });
 
 ///Provides an instance of chatwoot user dao
