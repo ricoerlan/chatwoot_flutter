@@ -129,6 +129,19 @@ class ChatwootClient {
     }
   }
   
+  /// Marks all messages as read
+  /// This will mark all currently stored messages as read,
+  /// which will reset the unread message count to zero
+  void markAllMessagesAsRead() {
+    try {
+      final container = providerContainerMap[_parameters.clientInstanceKey]!;
+      final localStorage = container.read(localStorageProvider(_parameters));
+      localStorage.messagesDao.markAllMessagesAsRead();
+    } catch (e) {
+      // Ignore errors
+    }
+  }
+
   /// Fetches the list of conversations from the server
   /// Returns an empty list if there's an error
   Future<List<ChatwootConversation>> getConversations() async {

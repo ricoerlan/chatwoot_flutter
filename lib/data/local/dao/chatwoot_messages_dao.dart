@@ -14,7 +14,7 @@ abstract class ChatwootMessagesDao {
   Future<void> markMessageAsRead(int messageId);
   bool isMessageRead(int messageId);
   Set<int> getReadMessageIds();
-
+  void markAllMessagesAsRead();
   Future<void> clearAll();
 }
 
@@ -118,6 +118,27 @@ class PersistedChatwootMessagesDao extends ChatwootMessagesDao {
   }
 
   @override
+  void markAllMessagesAsRead() {
+    try {
+      final key = _clientInstanceKey;
+      final allMessages = getMessages();
+      final readMessageIds = getReadMessageIds().toList();
+      
+      // Add all message IDs to the read messages list
+      for (final message in allMessages) {
+        if (!readMessageIds.contains(message.id)) {
+          readMessageIds.add(message.id);
+        }
+      }
+      
+      // Store the updated list in the box
+      _readMessagesBox.put(key, readMessageIds);
+    } catch (e) {
+      // Ignore errors
+    }
+  }
+
+  @override
   Future<void> deleteMessage(int messageId) async {
     await _box.delete(messageId);
     await _messageIdToClientInstanceKeyBox.delete(messageId);
@@ -205,6 +226,14 @@ class NonPersistedChatwootMessagesDao extends ChatwootMessagesDao {
   @override
   Set<int> getReadMessageIds() {
     return _readMessageIds;
+  }
+
+  @override
+  void markAllMessagesAsRead() {
+    final allMessages = getMessages();
+    for (final message in allMessages) {
+      _readMessageIds.add(message.id);
+    }
   }
 
   @override
